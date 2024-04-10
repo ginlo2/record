@@ -32,7 +32,7 @@ android {
         namespace 'com.llfbandit.record'
     }
     
-    compileSdkVersion 33
+    compileSdk 34
 
     compileOptions {
         sourceCompatibility JavaVersion.VERSION_17
