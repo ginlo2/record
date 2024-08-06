@@ -46,7 +46,7 @@ private func setInput(_ config: RecordConfig) throws {
 extension AudioRecordingDelegate {
   func initAVAudioSession(config: RecordConfig) throws {
     let audioSession = AVAudioSession.sharedInstance()
-    let options: AVAudioSession.CategoryOptions = [.defaultToSpeaker, .allowBluetooth]
+    let options: AVAudioSession.CategoryOptions = [.defaultToSpeaker, .allowBluetooth, .allowBluetoothA2DP]
     
     do {
       try audioSession.setCategory(.playAndRecord, options: options)
@@ -58,6 +58,14 @@ extension AudioRecordingDelegate {
       try audioSession.setPreferredSampleRate((config.sampleRate <= 48000) ? Double(config.sampleRate) : 48000.0)
     } catch {
       throw RecorderError.error(message: "Failed to start recording", details: "setPreferredSampleRate: \(error.localizedDescription)")
+    }
+    
+    if #available(iOS 14.5, *) {
+      do {
+        try audioSession.setPrefersNoInterruptionsFromSystemAlerts(true)
+      } catch {
+        throw RecorderError.error(message: "Failed to start recording", details: "setPrefersNoInterruptionsFromSystemAlerts: \(error.localizedDescription)")
+      }
     }
     
     do {
@@ -98,20 +106,6 @@ extension AudioRecordingDelegate {
     
     if type == AVAudioSession.InterruptionType.began {
       pause()
-    } else if type == AVAudioSession.InterruptionType.ended {
-      guard let optionsValue = userInfo[AVAudioSessionInterruptionOptionKey] as? UInt else { return }
-      
-      let options = AVAudioSession.InterruptionOptions(rawValue: optionsValue)
-      
-      if options.contains(.shouldResume) {
-        do {
-          try resume()
-        } catch {
-          stop(completionHandler: {(path) -> () in })
-        }
-      } else {
-        stop(completionHandler: {(path) -> () in })
-      }
     }
   }
 }

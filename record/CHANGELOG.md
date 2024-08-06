@@ -1,3 +1,18 @@
+## 5.1.3
+* fix: Operations can't be called concurrently anymore. (i.e. when operations are unawaited by caller).
+
+## 5.1.2
+* chore: Updated platform dependencies.
+* chore: Updated README.md.
+
+## 5.1.1
+* chore: Updated Android dependency.
+* chore: Updated README.md.
+
+## 5.1.0
+* chore: Updated Android and web dependencies.
+* chore: Updated README.md.
+
 ## 5.0.5
 * fix: Expose cancel method to stop and discard the recording.
 * feat: Improve convertBytesToInt16 method by exposing endian parameter.

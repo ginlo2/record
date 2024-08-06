@@ -48,18 +48,6 @@ android {
     }
 
     defaultConfig {
-        minSdkVersion 21
+        minSdk 23
     }
-}
-
-/*allprojects {
-    gradle.projectsEvaluated {
-        tasks.withType(JavaCompile) {
-            options.compilerArgs << "-Xlint:unchecked" << "-Xlint:deprecation"
-        }
-    }
-}*/
-
-dependencies {
-    runtimeOnly 'androidx.appcompat:appcompat:1.6.1'
 }

@@ -1,3 +1,10 @@
+## 1.1.1
+* fix: Pausing for too long with Chromium based browsers breaks the recording.
+* fix: Migrate to package:web missing parts & example.
+
+## 1.1.0
+* feat: Migrated implementation to package:web.
+
 ## 1.0.5
 * fix: Use relative asset path for worklet file (#274)
 

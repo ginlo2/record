@@ -2,7 +2,6 @@ package com.llfbandit.record.methodcall
 
 import android.app.Activity
 import android.content.Context
-import android.os.Build
 import com.llfbandit.record.Utils
 import com.llfbandit.record.permission.PermissionManager
 import com.llfbandit.record.record.RecordConfig
@@ -24,7 +23,7 @@ class MethodCallHandlerImpl(
 ) : MethodCallHandler {
     private var activity: Activity? = null
     private val recorders = ConcurrentHashMap<String, RecorderWrapper>()
-    private val bluetoothReceiver = BluetoothReceiver(appContext)
+
 
     fun dispose() {
         for (entry in recorders.entries) {
@@ -115,32 +114,18 @@ class MethodCallHandlerImpl(
     }
 
     private fun createRecorder(recorderId: String) {
-        val recorder = RecorderWrapper(recorderId, messenger)
+        val recorder = RecorderWrapper(appContext, recorderId, messenger)
         recorder.setActivity(activity)
         recorders[recorderId] = recorder
-
-        if (!bluetoothReceiver.hasListeners()) {
-            bluetoothReceiver.register()
-        }
-        bluetoothReceiver.addListener(recorder)
     }
 
     private fun disposeRecorder(recorder: RecorderWrapper, recorderId: String) {
         recorder.dispose()
         recorders.remove(recorderId)
-
-        bluetoothReceiver.removeListener(recorder)
-        if (!bluetoothReceiver.hasListeners()) {
-            bluetoothReceiver.unregister()
-        }
     }
 
     private fun getRecordConfig(call: MethodCall): RecordConfig {
-        val device = if (Build.VERSION.SDK_INT >= 23) {
-            DeviceUtils.deviceInfoFromMap(appContext, call.argument("device"))
-        } else {
-            null
-        }
+        val androidConfig = call.argument("androidConfig") as Map<*, *>?
 
         return RecordConfig(
             call.argument("path"),
@@ -148,10 +133,12 @@ class MethodCallHandlerImpl(
             Utils.firstNonNull(call.argument("bitRate"), 128000),
             Utils.firstNonNull(call.argument("sampleRate"), 44100),
             Utils.firstNonNull(call.argument("numChannels"), 2),
-            device,
+            DeviceUtils.deviceInfoFromMap(appContext, call.argument("device")),
             Utils.firstNonNull(call.argument("autoGain"), false),
             Utils.firstNonNull(call.argument("echoCancel"), false),
-            Utils.firstNonNull(call.argument("noiseSuppress"), false)
+            Utils.firstNonNull(call.argument("noiseSuppress"), false),
+            Utils.firstNonNull(androidConfig?.get("useLegacy") as Boolean?, false),
+            Utils.firstNonNull(androidConfig?.get("muteAudio") as Boolean?, false),
         )
     }
 }

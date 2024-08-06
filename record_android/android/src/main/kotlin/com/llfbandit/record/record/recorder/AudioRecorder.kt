@@ -1,6 +1,10 @@
-package com.llfbandit.record.record
+package com.llfbandit.record.record.recorder
 
+import android.content.Context
+import android.media.AudioManager
 import android.util.Log
+import com.llfbandit.record.record.RecordConfig
+import com.llfbandit.record.record.RecordState
 import com.llfbandit.record.record.stream.RecorderRecordStreamHandler
 import com.llfbandit.record.record.stream.RecorderStateStreamHandler
 
@@ -15,84 +19,80 @@ interface OnAudioRecordListener {
 class AudioRecorder(
     // Recorder streams
     private val recorderStateStreamHandler: RecorderStateStreamHandler,
-    private val recorderRecordStreamHandler: RecorderRecordStreamHandler
-) : OnAudioRecordListener {
+    private val recorderRecordStreamHandler: RecorderRecordStreamHandler,
+    private val appContext: Context
+) : IRecorder, OnAudioRecordListener {
     companion object {
         private val TAG = AudioRecorder::class.java.simpleName
     }
 
     // Recorder thread with which we will interact
     private var recorderThread: RecordThread? = null
+
     // Amplitude
     private var maxAmplitude = -160.0
+
     // Recording config
     private var config: RecordConfig? = null
+
     // Stop callback to be synchronized between stop method return & record stop
     private var stopCb: ((path: String?) -> Unit)? = null
+
+    private var muteSettings = HashMap<Int, Int>()
+    private val muteStreams = arrayOf(
+        AudioManager.STREAM_ALARM,
+        AudioManager.STREAM_DTMF,
+        AudioManager.STREAM_MUSIC,
+        AudioManager.STREAM_NOTIFICATION,
+        AudioManager.STREAM_RING,
+        AudioManager.STREAM_SYSTEM,
+        AudioManager.STREAM_VOICE_CALL,
+    )
+
+    init {
+        initMuteSettings()
+    }
 
     /**
      * Starts the recording with the given config.
      */
     @Throws(Exception::class)
-    fun start(config: RecordConfig) {
+    override fun start(config: RecordConfig) {
         this.config = config
 
         recorderThread = RecordThread(config, this)
-        recorderThread!!.start()
+        recorderThread!!.startRecording()
+
+        if (config.muteAudio) {
+            muteAudio(true)
+        }
     }
 
-    /**
-     * Stops the recording.
-     */
-    fun stop(stopCb: ((path: String?) -> Unit)?) {
+    override fun stop(stopCb: ((path: String?) -> Unit)?) {
         this.stopCb = stopCb
 
         recorderThread?.stopRecording()
     }
 
-    /**
-     * Stops the recording and delete file.
-     */
-    fun cancel() {
+    override fun cancel() {
         recorderThread?.cancelRecording()
     }
 
-    /**
-     * Pauses the recording if currently running.
-     */
-    fun pause() {
+    override fun pause() {
         recorderThread?.pauseRecording()
     }
 
-    /**
-     * Resumes the recording if currently paused.
-     */
-    fun resume() {
+    override fun resume() {
         recorderThread?.resumeRecording()
     }
 
-    /**
-     * Gets the state the of recording
-     *
-     * @return True if recording. False otherwise.
-     */
-    val isRecording: Boolean
+    override val isRecording: Boolean
         get() = recorderThread?.isRecording() == true
 
-    /**
-     * Gets the state the of recording
-     *
-     * @return True if paused. False otherwise.
-     */
-    val isPaused: Boolean
+    override val isPaused: Boolean
         get() = recorderThread?.isPaused() == true
 
-    /**
-     * Gets the amplitude
-     *
-     * @return List with current and max amplitude values
-     */
-    fun getAmplitude(): List<Double> {
+    override fun getAmplitude(): List<Double> {
         val amplitude = recorderThread?.getAmplitude() ?: -160.0
         val amps: MutableList<Double> = ArrayList()
         amps.add(amplitude)
@@ -100,7 +100,7 @@ class AudioRecorder(
         return amps
     }
 
-    fun dispose() {
+    override fun dispose() {
         stop(null)
     }
 
@@ -114,6 +114,10 @@ class AudioRecorder(
     }
 
     override fun onStop() {
+        if (config?.muteAudio == true) {
+            muteAudio(false)
+        }
+
         stopCb?.invoke(config?.path)
         stopCb = null
 
@@ -127,5 +131,27 @@ class AudioRecorder(
 
     override fun onAudioChunk(chunk: ByteArray) {
         recorderRecordStreamHandler.sendRecordChunkEvent(chunk)
+    }
+
+    private fun muteAudio(mute: Boolean) {
+        val audioManager = appContext.getSystemService(Context.AUDIO_SERVICE) as AudioManager
+
+        val muteValue = AudioManager.ADJUST_MUTE
+        val unmuteValue = AudioManager.ADJUST_UNMUTE
+
+        muteStreams.forEach { stream ->
+            val volumeLevel = if (mute) muteValue else (muteSettings[stream] ?: unmuteValue)
+            audioManager.setStreamVolume(stream, volumeLevel, 0)
+        }
+    }
+
+    private fun initMuteSettings() {
+        muteSettings.clear()
+
+        val audioManager = appContext.getSystemService(Context.AUDIO_SERVICE) as AudioManager
+
+        muteStreams.forEach { stream ->
+            muteSettings[stream] = audioManager.getStreamVolume(stream)
+        }
     }
 }
