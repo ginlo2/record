@@ -169,8 +169,6 @@ class AudioRecorder {
 
   /// Lists capture/input devices available on the platform.
   ///
-  /// On Android and iOS, an empty list will be returned.
-  ///
   /// On web, and in general, you should already have permission before
   /// accessing this method otherwise the list may return an empty list.
   Future<List<InputDevice>> listInputDevices() async {
@@ -220,6 +218,8 @@ class AudioRecorder {
   /// Listen to recorder states [RecordState].
   ///
   /// Provides pause, resume and stop states.
+  ///
+  /// Also, you can retrieve async errors from it by adding [Function? onError].
   Stream<RecordState> onStateChanged() => _stateStreamCtrl.stream;
 
   /// Request for amplitude at given [interval].

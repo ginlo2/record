@@ -1,11 +1,11 @@
 package com.llfbandit.record.methodcall
 
-import android.app.Activity
 import android.content.Context
+import android.media.MediaRecorder
+import android.os.Build
 import com.llfbandit.record.Utils
 import com.llfbandit.record.permission.PermissionManager
 import com.llfbandit.record.record.RecordConfig
-import com.llfbandit.record.record.bluetooth.BluetoothReceiver
 import com.llfbandit.record.record.device.DeviceUtils
 import com.llfbandit.record.record.format.AudioFormats
 import io.flutter.plugin.common.BinaryMessenger
@@ -21,7 +21,6 @@ class MethodCallHandlerImpl(
     private val messenger: BinaryMessenger,
     private val appContext: Context
 ) : MethodCallHandler {
-    private var activity: Activity? = null
     private val recorders = ConcurrentHashMap<String, RecorderWrapper>()
 
 
@@ -31,13 +30,6 @@ class MethodCallHandlerImpl(
         }
 
         recorders.clear()
-    }
-
-    fun setActivity(activity: Activity?) {
-        this.activity = activity
-        for (recorder in recorders.values) {
-            recorder.setActivity(activity)
-        }
     }
 
     override fun onMethodCall(call: MethodCall, result: MethodChannel.Result) {
@@ -115,7 +107,6 @@ class MethodCallHandlerImpl(
 
     private fun createRecorder(recorderId: String) {
         val recorder = RecorderWrapper(appContext, recorderId, messenger)
-        recorder.setActivity(activity)
         recorders[recorderId] = recorder
     }
 
@@ -126,6 +117,30 @@ class MethodCallHandlerImpl(
 
     private fun getRecordConfig(call: MethodCall): RecordConfig {
         val androidConfig = call.argument("androidConfig") as Map<*, *>?
+
+        val audioSource: Int = when(androidConfig?.get("audioSource")) {
+            "defaultSource" -> MediaRecorder.AudioSource.DEFAULT
+            "mic" -> MediaRecorder.AudioSource.MIC
+            "voiceUplink" -> MediaRecorder.AudioSource.VOICE_UPLINK
+            "voiceDownlink" -> MediaRecorder.AudioSource.VOICE_DOWNLINK
+            "voiceCall" -> MediaRecorder.AudioSource.VOICE_CALL
+            "camcorder" -> MediaRecorder.AudioSource.CAMCORDER
+            "voiceRecognition" -> MediaRecorder.AudioSource.VOICE_RECOGNITION
+            "voiceCommunication" -> MediaRecorder.AudioSource.VOICE_COMMUNICATION
+            "remoteSubMix" -> MediaRecorder.AudioSource.REMOTE_SUBMIX
+            "unprocessed" -> if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
+                MediaRecorder.AudioSource.UNPROCESSED
+            } else {
+                MediaRecorder.AudioSource.DEFAULT
+            }
+            "voicePerformance" -> if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                MediaRecorder.AudioSource.VOICE_PERFORMANCE
+            } else {
+                MediaRecorder.AudioSource.DEFAULT
+            }
+
+            else -> MediaRecorder.AudioSource.DEFAULT
+        }
 
         return RecordConfig(
             call.argument("path"),
@@ -139,6 +154,8 @@ class MethodCallHandlerImpl(
             Utils.firstNonNull(call.argument("noiseSuppress"), false),
             Utils.firstNonNull(androidConfig?.get("useLegacy") as Boolean?, false),
             Utils.firstNonNull(androidConfig?.get("muteAudio") as Boolean?, false),
+            Utils.firstNonNull(androidConfig?.get("manageBluetooth") as Boolean?, true),
+            audioSource
         )
     }
 }

@@ -1,6 +1,5 @@
 package com.llfbandit.record.methodcall
 
-import android.app.Activity
 import android.content.Context
 import android.media.AudioDeviceInfo
 import com.llfbandit.record.record.RecordConfig
@@ -39,18 +38,13 @@ internal class RecorderWrapper(
         eventRecordChannel?.setStreamHandler(recorderRecordStreamHandler)
     }
 
-    fun setActivity(activity: Activity?) {
-        recorderStateStreamHandler.setActivity(activity)
-        recorderRecordStreamHandler.setActivity(activity)
-    }
-
     fun startRecordingToFile(config: RecordConfig, result: MethodChannel.Result) {
         startRecording(config, result)
     }
 
     fun startRecordingToStream(config: RecordConfig, result: MethodChannel.Result) {
         if (config.useLegacy) {
-            throw Exception("Unsupported feature from legacy recorder.")
+            throw Exception("Cannot stream audio while using the legacy recorder")
         }
         startRecording(config, result)
     }
@@ -148,7 +142,9 @@ internal class RecorderWrapper(
     }
 
     private fun createRecorder(config: RecordConfig): IRecorder {
-        maybeStartBluetooth(config)
+        if (config.manageBluetooth) {
+            maybeStartBluetooth(config)
+        }
 
         if (config.useLegacy) {
             return MediaRecorder(context, recorderStateStreamHandler)
@@ -187,7 +183,10 @@ internal class RecorderWrapper(
 
     private fun maybeStopBluetooth() {
         bluetoothReceiver?.removeListener(this)
-        bluetoothReceiver?.unregister()
+
+        if (bluetoothReceiver?.hasListeners() != true) {
+            bluetoothReceiver?.unregister()
+        }
     }
 
     override fun onBlScoConnected() {
